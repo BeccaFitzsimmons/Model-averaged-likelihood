@@ -1,0 +1,47 @@
+#Algortihm for calculating the probability of an X-ray source is a galaxy culster in the XXM XLL Survey
+#Marcus Clifford, University of Bristol, January 2016
+
+
+#For the vector x, x[1] is the Luminosity in units of , and x[2] is the redshift.
+
+#Prior
+#Schechter luminosity function using the equation and values from Bohringer et all (2002), independant of redhisft
+#Normalised between 0.01 and 100 in units of 0.01 and 100 in units of 10^44 h_50^-2 ergs s^-1
+a=-1.69
+L=8.36
+n_norm=0.006817108
+Lum_norm <- function(x){
+  n_norm*exp(-x[1]/L)*((x[1]/L)^a)/L
+}
+
+#Flux calculation from Luminosity in 10^44 h_50^-2 ergs s^-1 and redshift, gives flux in 1e-15 erg/s/cm^2
+Flux <- function(x){
+  1e15*0.5e44*x[1]/(4*pi*(3.086e+24*D.L(x[2]))^2)
+}
+
+#Selection Function
+#Simple step function where any flux above 1e-15 ergs/s/cm^2 will be detected, normalised between 0.01 - 100 in L and 0-2 in z
+threshold = 1
+detect <- function(x){
+  if(Flux(x)>threshold){
+    return(1/199.98)}
+  else{
+    return(0)
+  }
+}
+
+#Flux likelihood
+likelihood <- function(x,f,sd){
+  (1/(sqrt(2*pi)*sd))*exp(-0.5*((f-Flux(x))/sd)^2)
+}
+
+#Final integral
+integrand <- function(x,f,sd){
+  likelihood(x,f,sd)*detect(x)*Lum_norm(x)
+  }
+
+probability <- function(F,SD){
+  adaptIntegrate(function(x) integrand(x, f=F, sd=SD), lowerLimit = c(0.01,0), upperLimit = c(100,2))$integral
+  }
+
+probability_vector <- Vectorize(probability)
