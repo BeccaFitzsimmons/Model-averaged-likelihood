@@ -1,0 +1,49 @@
+data <- read.csv("fluxcountrate.csv", header = TRUE)
+
+alpha = 1.690 #determines the gradient when L<L_star. value from Koens paper
+phi_star0 = 2.94*10^-7*(69.7/70)^3 #IN UNITS OF MPC^-3. value from Koens paper.
+L_star0 = 2.64*(69.7/70)^-2 #units of 10^44 erg/s 
+#value from Koens paper. Used same H0 value as in the D.L. function
+
+A = 1.88
+B = -1.76
+
+medianredshift <- function(x) {approx(z_0table$L, z_0table$z_0, xout = x[1], method = "linear")$y}
+
+L_star <- function(x) {L_star0*((1+x[2])/(1+medianredshift(x[1])))^B} 
+
+#unnormalizedLF <- function(x)  {((x[1]/(L_star(x)))^(-alpha))*(exp(-x[1]/L_star(x)))*(1/L_star(x))}
+
+unnormalizedLF2 <- function(z) 
+  {unnormalizedLF <- function(L) {((L/(L_star(x)))^(-alpha))*(exp(-L/L_star(x)))*(1/L_star(x))}}
+
+phi_star <- function(z) {1/(integrate(unnormalizedLF2(z), lower = 0.1, upper = 100)$value}
+#normalization parameter as a function of z
+
+LF <- function(x) #luminosity function
+{phi_star(x[2])*((x[1]/(L_star(x)))^(-alpha))*(exp(-x[1]/L_star(x)))*(1/L_star(x))}
+
+D.L(x[2], omega.m = 0.282, omega.lambda = 0.718, H.0 = 69.7) #luminosity distance, units of Mpc
+
+flux <- function(x) {x[1]/(4*pi*((D.L(x[2]))^2))}*10^7*(100^-2)*(10*6*3.0857*10^16)^-2
+#predicted flux. converting from units of joules/Mpc^2/s to erg/cm^2/s
+
+measuredflux <- numeric(14162) #creating a vector of doubles to store the measured fluxes in
+
+Prob <- numeric(14162) #creating a vector of doubles to store the model-
+#averaged likelihoods for each source
+
+n=1
+
+measuredflux[n] <- data[n,1] #units of erg/cm^2/s 
+counts[n] <- data[n,2]
+  
+uncertainty <- {((counts[n])^0.5)/counts[n])*measuredflux[n]} 
+  
+likelihood <- function(x) 
+  {(1/((2*pi)^0.5))*(1/uncertainty(x))*exp(-0.5*((measuredflux[n]-flux(x))/uncertainty(x))^2)} 
+  
+integrand <- function(x) {likelihood(x)*LF(x)} #*STEPFUNCTION
+  
+Prob[n] <- adaptIntegrate(integrand, lowerLimit=c(0.1,0.01), upperLimit=c(100,1))$integral #need to sort out limits
+  
